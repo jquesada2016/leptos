@@ -6,7 +6,8 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 /// Manages all of the stylesheets set by [Stylesheet] components.
 #[derive(Clone, Default, Debug)]
 pub struct StylesheetContext {
-    els: Rc<RefCell<HashMap<String, Option<web_sys::HtmlLinkElement>>>>,
+    #[allow(clippy::type_complexity)]
+    els: Rc<RefCell<HashMap<(Option<String>, String), Option<web_sys::HtmlLinkElement>>>>,
 }
 
 impl StylesheetContext {
@@ -15,7 +16,13 @@ impl StylesheetContext {
         self.els
             .borrow()
             .iter()
-            .map(|(href, _)| format!(r#"<link rel="stylesheet" href="{href}">"#))
+            .map(|((id, href), _)| {
+                if let Some(id) = id {
+                    format!(r#"<link rel="stylesheet" id="{id}" href="{href}">"#)
+                } else {
+                    format!(r#"<link rel="stylesheet" href="{href}">"#)
+                }
+            })
             .collect()
     }
 }
@@ -44,6 +51,9 @@ pub fn Stylesheet(
     /// The URL at which the stylesheet is located.
     #[prop(into)]
     href: String,
+    /// An ID for the stylesheet.
+    #[prop(optional, into)]
+    id: Option<String>
 ) -> impl IntoView {
     cfg_if! {
         if #[cfg(any(feature = "csr", feature = "hydrate"))] {
@@ -54,13 +64,17 @@ pub fn Stylesheet(
             // TODO I guess this will create a duplicated <link> when hydrating
             let existing_el = {
                 let els = meta.stylesheets.els.borrow();
-                els.get(&href).cloned()
+                let key = (id.clone(), href.clone());
+                els.get(&key).cloned()
             };
             if let Some(Some(_)) = existing_el {
                 leptos::leptos_dom::debug_warn!("<Stylesheet/> already loaded stylesheet {href}");
             } else {
                 let el = document().create_element("link").unwrap_throw();
                 el.set_attribute("rel", "stylesheet").unwrap_throw();
+                if let Some(id_val) = &id{
+                    el.set_attribute("id", id_val).unwrap_throw();
+                }
                 el.set_attribute("href", &href).unwrap_throw();
                 document()
                     .query_selector("head")
@@ -71,11 +85,11 @@ pub fn Stylesheet(
                 meta.stylesheets
                     .els
                     .borrow_mut()
-                    .insert(href, Some(el.unchecked_into()));
+                    .insert((id, href), Some(el.unchecked_into()));
             }
         } else {
             let meta = use_head(cx);
-            meta.stylesheets.els.borrow_mut().insert(href, None);
+            meta.stylesheets.els.borrow_mut().insert((id,href), None);
         }
     }
 }

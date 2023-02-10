@@ -9,9 +9,9 @@ use broadcaster::BroadcastChannel;
 
 #[cfg(feature = "ssr")]
 pub fn register_server_functions() {
-    GetServerCount::register();
-    AdjustServerCount::register();
-    ClearServerCount::register();
+    _ = GetServerCount::register();
+    _ = AdjustServerCount::register();
+    _ = ClearServerCount::register();
 }
 
 #[cfg(feature = "ssr")]
@@ -226,7 +226,7 @@ pub fn MultiuserCounter(cx: Scope) -> impl IntoView {
             <div>
                 <button on:click=move |_| clear.dispatch(())>"Clear"</button>
                 <button on:click=move |_| dec.dispatch(())>"-1"</button>
-                <span>"Multiplayer Value: " {move || multiplayer_value().unwrap_or_default().to_string()}</span>
+                <span>"Multiplayer Value: " {move || multiplayer_value.get().unwrap_or_default().to_string()}</span>
                 <button on:click=move |_| inc.dispatch(())>"+1"</button>
             </div>
         </div>
